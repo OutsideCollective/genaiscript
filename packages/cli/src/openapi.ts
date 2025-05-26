@@ -120,6 +120,8 @@ export async function startOpenAPIServer(
             displayName,
         } = (await nodeTryReadPackage()) || {}
 
+        const operationPrefix = ""
+
         // Register the OpenAPI documentation plugin (Swagger for OpenAPI 3.x)
         await fastify.register(swagger, {
             openapi: {
@@ -181,31 +183,38 @@ export async function startOpenAPIServer(
             const bodySchema =
                 accept !== "none"
                     ? {
-                          type: "array",
-                          items: {
-                              type: "object",
-                              properties: {
-                                  filename: {
-                                      type: "string",
-                                      description: `Filename of the file. Accepts ${accept || "*"}.`,
-                                  },
-                                  content: {
-                                      type: "string",
-                                      description:
-                                          "Content of the file. Use 'base64' encoding for binary files.",
-                                  },
-                                  encoding: {
-                                      type: "string",
-                                      description:
-                                          "Encoding of the file. Binary files should use 'base64'.",
-                                      enum: ["base64"],
-                                  },
-                                  type: {
-                                      type: "string",
-                                      description: "MIME type of the file",
+                          type: "object",
+                          properties: {
+                              ...scriptSchema.properties,
+                              files: {
+                                  type: "array",
+                                  items: {
+                                      type: "object",
+                                      properties: {
+                                          filename: {
+                                              type: "string",
+                                              description: `Filename of the file. Accepts ${accept || "*"}.`,
+                                          },
+                                          content: {
+                                              type: "string",
+                                              description:
+                                                  "Content of the file. Use 'base64' encoding for binary files.",
+                                          },
+                                          encoding: {
+                                              type: "string",
+                                              description:
+                                                  "Encoding of the file. Binary files should use 'base64'.",
+                                              enum: ["base64"],
+                                          },
+                                          type: {
+                                              type: "string",
+                                              description:
+                                                  "MIME type of the file",
+                                          },
+                                      },
+                                      required: ["filename", "content"],
                                   },
                               },
-                              required: ["filename", "content"],
                           },
                       }
                     : undefined
@@ -239,6 +248,16 @@ export async function startOpenAPIServer(
                                           defaultOptional: true,
                                       })
                                     : undefined,
+                                uncertainty: {
+                                    type: "number",
+                                    description:
+                                        "Uncertainty of the response, between 0 and 1",
+                                },
+                                perplexity: {
+                                    type: "number",
+                                    description:
+                                        "Perplexity of the response, lower is better",
+                                },
                             }),
                         },
                         { defaultOptional: true }
@@ -263,16 +282,17 @@ export async function startOpenAPIServer(
                     },
                 },
             })
+            const operationId = `${operationPrefix}${id}`
             const getSchema =
                 accept === undefined || accept === "none"
                     ? deleteUndefinedValues({
-                          operationId: `genai_${id}`,
+                          operationId,
                           ...commonSchema,
                       })
                     : undefined
             const postSchema = !getSchema
                 ? deleteUndefinedValues({
-                      operationId: `genai_post_${id}`,
+                      operationId,
                       ...commonSchema,
                       body: bodySchema
                           ? toStrictJSONSchema(bodySchema, {
@@ -292,9 +312,9 @@ export async function startOpenAPIServer(
             routes.add(url)
 
             const handler = async (request: FastifyRequest) => {
-                const { files, ...bodyRest } = (request.body || {
-                    files: [],
-                }) as any
+                const { files = [], ...bodyRest } = (request.body || {}) as any
+                dbgHandlers(`query: %O`, request.query)
+                dbgHandlers(`body: %O`, bodyRest)
                 const vars = { ...((request.query as any) || {}), ...bodyRest }
                 dbgHandlers(`vars: %O`, vars)
                 // TODO: parse query params?
@@ -311,11 +331,8 @@ export async function startOpenAPIServer(
                     dbgHandlers(`error: %O`, res.error)
                     throw new Error(errorMessage(res.error))
                 }
-                const text = res.text
-                const data = res?.json
                 return deleteUndefinedValues({
-                    text,
-                    data,
+                    ...res,
                 })
             }
             if (getSchema)
