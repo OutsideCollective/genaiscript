@@ -7,7 +7,7 @@ import {
 import { genaiscriptDebug } from "../../core/src/debug"
 import { nodeTryReadPackage } from "../../core/src/nodepackage"
 import { toStrictJSONSchema } from "../../core/src/schema"
-import { logVerbose, logWarn } from "../../core/src/util"
+import { logError, logVerbose, logWarn } from "../../core/src/util"
 import { RemoteOptions, applyRemoteOptions } from "./remote"
 import { startProjectWatcher } from "./watch"
 import type { FastifyInstance, FastifyRequest } from "fastify"
@@ -52,6 +52,7 @@ export async function startOpenAPIServer(
     } = options || {}
     const serverHost = network ? "0.0.0.0" : "127.0.0.1"
     const route = ensureHeadSlash(trimTrailingSlash(options?.route || "/api"))
+    const docsRoute = `${route}/docs`
     dbg(`route: %s`, route)
     dbg(`server host: %s`, serverHost)
     dbg(`run options: %O`, runOptions)
@@ -162,6 +163,7 @@ export async function startOpenAPIServer(
         })
 
         // Dynamically create a POST route for each tool in the tools list
+        const routes = new Set<string>([docsRoute])
         for (const tool of tools) {
             const {
                 id,
@@ -176,24 +178,49 @@ export async function startOpenAPIServer(
                 type: "object",
                 properties: {},
             }
-            if (accept !== "none")
-                scriptSchema.properties.files = {
-                    type: "array",
-                    items: {
-                        type: "string",
-                        description: `Filename or globs relative to the workspace used by the script.${accept ? ` Accepts: ${accept}` : ""}`,
-                    },
-                }
+            const bodySchema =
+                accept !== "none"
+                    ? {
+                          type: "array",
+                          items: {
+                              type: "object",
+                              properties: {
+                                  filename: {
+                                      type: "string",
+                                      description: `Filename of the file. Accepts ${accept || "*"}.`,
+                                  },
+                                  content: {
+                                      type: "string",
+                                      description:
+                                          "Content of the file. Use 'base64' encoding for binary files.",
+                                  },
+                                  encoding: {
+                                      type: "string",
+                                      description:
+                                          "Encoding of the file. Binary files should use 'base64'.",
+                                      enum: ["base64"],
+                                  },
+                                  type: {
+                                      type: "string",
+                                      description: "MIME type of the file",
+                                  },
+                              },
+                              required: ["filename", "content"],
+                          },
+                      }
+                    : undefined
 
             if (!description)
                 logWarn(`${id}: operation must have a description`)
             if (!group) logWarn(`${id}: operation must have a group`)
 
-            const getSchema = {
-                operationId: `genai_${id}`,
+            const commonSchema = deleteUndefinedValues({
                 summary,
                 description,
                 tags: [tool.group || "default"].filter(Boolean),
+                queryString: toStrictJSONSchema(scriptSchema, {
+                    defaultOptional: true,
+                }),
                 response: {
                     200: toStrictJSONSchema(
                         {
@@ -235,25 +262,45 @@ export async function startOpenAPIServer(
                         },
                     },
                 },
-            }
-            const postSchema = {
-                ...getSchema,
-                body: toStrictJSONSchema(scriptSchema, {
-                    defaultOptional: true,
-                }),
-            }
+            })
+            const getSchema =
+                accept === undefined || accept === "none"
+                    ? deleteUndefinedValues({
+                          operationId: `genai_${id}`,
+                          ...commonSchema,
+                      })
+                    : undefined
+            const postSchema = !getSchema
+                ? deleteUndefinedValues({
+                      operationId: `genai_post_${id}`,
+                      ...commonSchema,
+                      body: bodySchema
+                          ? toStrictJSONSchema(bodySchema, {
+                                defaultOptional: true,
+                            })
+                          : undefined,
+                  })
+                : undefined
 
-            // todo files
-            const url = `${route}/${id.replace(/[^a-z0-9]/g, "_").replace(/_{2,}/g, "_")}`
+            const toolPath = id.replace(/[^a-z\-_]+/gi, "_").replace(/_+$/, "")
+            const url = `${route}/${toolPath}`
+            if (routes.has(url)) {
+                logError(`duplicate route: ${url} for tool ${id}, skipping`)
+                continue
+            }
             dbg(`script %s: %s\n%O`, id, url, postSchema)
+            routes.add(url)
 
             const handler = async (request: FastifyRequest) => {
-                const { files, ...vars } = (request.body || {
+                const { files, ...bodyRest } = (request.body || {
                     files: [],
                 }) as any
+                const vars = { ...((request.query as any) || {}), ...bodyRest }
+                dbgHandlers(`vars: %O`, vars)
                 // TODO: parse query params?
-                const res = await run(tool.id, files, {
+                const res = await run(tool.id, [], {
                     ...runOptions,
+                    workspaceFiles: files || [],
                     vars: vars,
                     runTrace: false,
                     outputTrace: false,
@@ -271,20 +318,20 @@ export async function startOpenAPIServer(
                     data,
                 })
             }
-            if (!scriptSchema.required?.length) {
+            if (getSchema)
                 fastify.get(url, { schema: getSchema }, async (request) => {
                     dbgHandlers(`get %s %O`, tool.id, request.body)
                     return await handler(request)
                 })
-            }
-            fastify.post(url, { schema: postSchema }, async (request) => {
-                dbgHandlers(`post %s %O`, tool.id, request.body)
-                return await handler(request)
-            })
+            if (postSchema)
+                fastify.post(url, { schema: postSchema }, async (request) => {
+                    dbgHandlers(`post %s %O`, tool.id, request.body)
+                    return await handler(request)
+                })
         }
 
         await fastify.register(swaggerUi, {
-            routePrefix: `${route}/docs`,
+            routePrefix: docsRoute,
         })
 
         // Global error handler for uncaught errors and validation issues
