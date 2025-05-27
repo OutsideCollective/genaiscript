@@ -11,6 +11,7 @@
             "listModels": true,
             "imageGeneration": true,
             "responseFormat": "json_schema",
+            "metadata": true,
             "aliases": {
                 "large": "gpt-4.1",
                 "small": "gpt-4.1-mini",
@@ -58,6 +59,7 @@
             "speech": true,
             "imageGeneration": true,
             "aliases": {},
+            "metadata": true,
             "models": {
                 "o1-preview": {
                     "tools": false
@@ -224,12 +226,13 @@
             "listModels": false,
             "bearerToken": true,
             "aliases": {
-                "large": "gpt-4.1",
-                "small": "gpt-4o-mini",
-                "vision": "gpt-4.1",
-                "embeddings": "text-embedding-3-small",
-                "reasoning": "o3",
-                "reasoning_small": "o3-mini"
+                "large": "openai/gpt-4.1",
+                "small": "openai/gpt-4.1-mini",
+                "tiny": "openai/gpt-4.1-nano",
+                "vision": "openai/gpt-4.1",
+                "embeddings": "openai/text-embedding-3-small",
+                "reasoning": "openai/o3",
+                "reasoning_small": "openai/o3-mini"
             },
             "models": {
                 "o1-preview": {
@@ -326,7 +329,7 @@
             }
         },
         {
-            "id": "windows_ai",
+            "id": "windows",
             "detail": "Windows AI",
             "url": "https://learn.microsoft.com/en-us/windows/ai/",
             "prediction": false,
@@ -524,14 +527,6 @@
             }
         },
         {
-            "id": "transformers",
-            "detail": "Hugging Face Transformers",
-            "url": "https://huggingface.co/docs/transformers.js/index",
-            "prediction": false,
-            "tokenless": true,
-            "env": {}
-        },
-        {
             "id": "lmstudio",
             "detail": "LM Studio local server",
             "url": "https://lmstudio.ai/",
@@ -544,6 +539,21 @@
             "env": {
                 "LMSTUDIO_API_BASE": {
                     "description": "LM Studio API base URL",
+                    "format": "url"
+                }
+            }
+        },
+        {
+            "id": "docker",
+            "detail": "Docker Model Runner",
+            "url": "https://docs.docker.com/model-runner/",
+            "prediction": false,
+            "listModels": false,
+            "tokenless": true,
+            "topP": false,
+            "env": {
+                "DOCKER_MODEL_RUNNER_API_BASE": {
+                    "description": "Docker Model Runner API base URL",
                     "format": "url"
                 }
             }

@@ -7,7 +7,7 @@
     },
     "displayName": "GenAIScript Insiders",
     "description": "Generative AI Scripting.",
-    "version": "1.135.0",
+    "version": "1.140.0",
     "icon": "icon.png",
     "engines": {
         "vscode": "^1.98.0"
@@ -132,8 +132,8 @@
                 "steps": [
                     {
                         "id": "genaiscript.tutirla.node",
-                        "title": "Install Node.JS LTS (v20+)",
-                        "description": "GenAIScript requires Node.JS LTS (v20+) to run. [Read more...](https://microsoft.github.io/genaiscript/getting-started/installation/)",
+                        "title": "Install Node.JS LTS (v22+)",
+                        "description": "GenAIScript requires Node.JS LTS (v22+) to run. [Read more...](https://microsoft.github.io/genaiscript/getting-started/installation/)",
                         "media": {
                             "image": "media/tutorial-start.png",
                             "altText": ""
@@ -356,6 +356,16 @@
                         "default": true,
                         "description": "Enable or disables LLM request cache support."
                     },
+                    "genaiscript.cli.packageManager": {
+                        "type": "string",
+                        "default": "auto",
+                        "enum": [
+                            "auto",
+                            "npm",
+                            "pnpm"
+                        ],
+                        "description": "Package manager to use for GenAIScript CLI. Default is npm."
+                    },
                     "genaiscript.cli.version": {
                         "type": "string",
                         "description": "GenAIScript CLI version to use. Default matches the extension version."
@@ -496,15 +506,15 @@
     "devDependencies": {
         "@types/markdown-it": "^14.1.2",
         "@types/vscode": "^1.98.0",
-        "@vscode/vsce": "^3.3.2",
+        "@vscode/vsce": "^3.4.2",
         "assert": "^2.1.0",
-        "es-toolkit": "^1.37.2",
+        "es-toolkit": "^1.38.0",
         "markdown-it": "^14.1.0",
         "markdown-it-github-alerts": "0.2.0",
         "process": "^0.11.10",
         "typescript": "5.8.3",
         "vscode-uri": "^3.1.0",
         "websocket-polyfill": "0.0.3",
-        "zx": "^8.5.3"
+        "zx": "^8.5.4"
     }
 }
