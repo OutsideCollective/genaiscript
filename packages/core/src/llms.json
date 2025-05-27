@@ -527,14 +527,6 @@
             }
         },
         {
-            "id": "transformers",
-            "detail": "Hugging Face Transformers",
-            "url": "https://huggingface.co/docs/transformers.js/index",
-            "prediction": false,
-            "tokenless": true,
-            "env": {}
-        },
-        {
             "id": "lmstudio",
             "detail": "LM Studio local server",
             "url": "https://lmstudio.ai/",
@@ -547,6 +539,21 @@
             "env": {
                 "LMSTUDIO_API_BASE": {
                     "description": "LM Studio API base URL",
+                    "format": "url"
+                }
+            }
+        },
+        {
+            "id": "docker",
+            "detail": "Docker Model Runner",
+            "url": "https://docs.docker.com/model-runner/",
+            "prediction": false,
+            "listModels": false,
+            "tokenless": true,
+            "topP": false,
+            "env": {
+                "DOCKER_MODEL_RUNNER_API_BASE": {
+                    "description": "Docker Model Runner API base URL",
                     "format": "url"
                 }
             }

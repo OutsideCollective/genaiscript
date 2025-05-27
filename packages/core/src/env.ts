@@ -25,7 +25,6 @@ import {
     OLLAMA_DEFAULT_PORT,
     MODEL_PROVIDER_GOOGLE,
     GOOGLE_API_BASE,
-    MODEL_PROVIDER_TRANSFORMERS,
     MODEL_PROVIDER_ALIBABA,
     ALIBABA_BASE,
     MODEL_PROVIDER_MISTRAL,
@@ -49,6 +48,8 @@ import {
     MODEL_PROVIDER_VLLM,
     VLLM_API_BASE,
     GITHUB_TOKENS,
+    MODEL_PROVIDER_DOCKER_MODEL_RUNNER,
+    DOCKER_MODEL_RUNNER_API_BASE,
 } from "./constants"
 import { runtimeHost } from "./host"
 import { parseModelIdentifier } from "./models"
@@ -591,6 +592,26 @@ export async function parseTokenFromEnv(
         } satisfies LanguageModelConfiguration
     }
 
+    if (provider === MODEL_PROVIDER_DOCKER_MODEL_RUNNER) {
+        dbg(`processing ${MODEL_PROVIDER_DOCKER_MODEL_RUNNER}`)
+        const base =
+            env.DOCKER_MODEL_RUNNER_API_BASE || DOCKER_MODEL_RUNNER_API_BASE
+        if (base === PLACEHOLDER_API_BASE) {
+            throw new Error("DOCKER_MODEL_RUNNER_API_BASE not configured")
+        }
+        if (!URL.canParse(base)) {
+            throw new Error(`${base} must be a valid URL`)
+        }
+        return {
+            provider,
+            model,
+            base,
+            token: MODEL_PROVIDER_DOCKER_MODEL_RUNNER,
+            type: "openai",
+            source: "env: DOCKER_MODEL_RUNNER",
+        } satisfies LanguageModelConfiguration
+    }
+
     if (provider === MODEL_PROVIDER_HUGGINGFACE) {
         dbg(`processing ${MODEL_PROVIDER_HUGGINGFACE}`)
         const prefixes = ["HUGGINGFACE", "HF"]
@@ -795,17 +816,6 @@ export async function parseTokenFromEnv(
             token: MODEL_PROVIDER_JAN,
             type: "openai",
             source: "env: JAN_API_...",
-        }
-    }
-
-    if (provider === MODEL_PROVIDER_TRANSFORMERS) {
-        dbg(`processing MODEL_PROVIDER_TRANSFORMERS`)
-        return {
-            provider,
-            model,
-            base: undefined,
-            token: MODEL_PROVIDER_TRANSFORMERS,
-            source: "default",
         }
     }
 

@@ -12,7 +12,6 @@ import {
     MODEL_PROVIDER_ECHO,
     MODEL_PROVIDER_NONE,
     MODEL_PROVIDER_AZURE_AI_INFERENCE,
-    MODEL_PROVIDER_TRANSFORMERS,
 } from "./constants"
 import { runtimeHost } from "./host"
 import { OllamaModel } from "./ollama"
@@ -53,8 +52,6 @@ export function resolveLanguageModel(provider: string): LanguageModel {
     if (provider === MODEL_PROVIDER_ANTHROPIC) return AnthropicModel
     if (provider === MODEL_PROVIDER_ANTHROPIC_BEDROCK)
         return AnthropicBedrockModel
-    if (provider === MODEL_PROVIDER_TRANSFORMERS)
-        throw new Error("Transformers not supported")
     if (provider === MODEL_PROVIDER_LMSTUDIO) return LMStudioModel
     if (provider === MODEL_PROVIDER_WHISPERASR) return WhisperAsrModel
     if (provider === MODEL_PROVIDER_ECHO) return EchoModel
