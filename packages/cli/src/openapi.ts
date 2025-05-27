@@ -180,13 +180,13 @@ export async function startOpenAPIServer(
                 type: "object",
                 properties: {},
             }
-            const bodySchema =
-                accept !== "none"
-                    ? {
-                          type: "object",
-                          properties: {
-                              ...scriptSchema.properties,
-                              files: {
+            const bodySchema = {
+                type: "object",
+                properties: deleteUndefinedValues({
+                    ...(scriptSchema?.properties || {}),
+                    files:
+                        accept !== "none"
+                            ? {
                                   type: "array",
                                   items: {
                                       type: "object",
@@ -214,22 +214,22 @@ export async function startOpenAPIServer(
                                       },
                                       required: ["filename", "content"],
                                   },
-                              },
-                          },
-                      }
-                    : undefined
-
+                              }
+                            : undefined,
+                }),
+                required: scriptSchema?.required || [],
+            }
             if (!description)
                 logWarn(`${id}: operation must have a description`)
             if (!group) logWarn(`${id}: operation must have a group`)
 
-            const commonSchema = deleteUndefinedValues({
+            const operationId = `${operationPrefix}${id}`
+            const schema = deleteUndefinedValues({
+                operationId,
                 summary,
                 description,
                 tags: [tool.group || "default"].filter(Boolean),
-                queryString: toStrictJSONSchema(scriptSchema, {
-                    defaultOptional: true,
-                }),
+                body: toStrictJSONSchema(bodySchema, { defaultOptional: true }),
                 response: {
                     200: toStrictJSONSchema(
                         {
@@ -282,33 +282,13 @@ export async function startOpenAPIServer(
                     },
                 },
             })
-            const operationId = `${operationPrefix}${id}`
-            const getSchema =
-                accept === undefined || accept === "none"
-                    ? deleteUndefinedValues({
-                          operationId,
-                          ...commonSchema,
-                      })
-                    : undefined
-            const postSchema = !getSchema
-                ? deleteUndefinedValues({
-                      operationId,
-                      ...commonSchema,
-                      body: bodySchema
-                          ? toStrictJSONSchema(bodySchema, {
-                                defaultOptional: true,
-                            })
-                          : undefined,
-                  })
-                : undefined
-
             const toolPath = id.replace(/[^a-z\-_]+/gi, "_").replace(/_+$/, "")
             const url = `${route}/${toolPath}`
             if (routes.has(url)) {
                 logError(`duplicate route: ${url} for tool ${id}, skipping`)
                 continue
             }
-            dbg(`script %s: %s\n%O`, id, url, postSchema)
+            dbg(`script %s: %s\n%O`, id, url, schema)
             routes.add(url)
 
             const handler = async (request: FastifyRequest) => {
@@ -335,16 +315,10 @@ export async function startOpenAPIServer(
                     ...res,
                 })
             }
-            if (getSchema)
-                fastify.get(url, { schema: getSchema }, async (request) => {
-                    dbgHandlers(`get %s %O`, tool.id, request.body)
-                    return await handler(request)
-                })
-            if (postSchema)
-                fastify.post(url, { schema: postSchema }, async (request) => {
-                    dbgHandlers(`post %s %O`, tool.id, request.body)
-                    return await handler(request)
-                })
+            fastify.post(url, { schema }, async (request) => {
+                dbgHandlers(`post %s %O`, tool.id, request.body)
+                return await handler(request)
+            })
         }
 
         await fastify.register(swaggerUi, {
